@@ -23,8 +23,10 @@ box_h = 20
 
 grid = []
 path = []
+searching = False
 queue = []
 stack = []
+
 
 # Load gambar
 BG = pygame.image.load("assets/bg-1.jpg")
@@ -94,8 +96,12 @@ def draw_menu():
     return com
 
 
-def draw_djik(condition):
-    SCREEN.fill('black')
+def draw_djik(condition, search, queue):
+    # if queue:
+    #     print(len(queue))
+    ready = None
+
+    SCREEN.fill('#343434')
     com = 1
     con = condition
 
@@ -149,11 +155,40 @@ def draw_djik(condition):
             con = 3
             # messagebox.showinfo("cek aja", f"{con}")
 
-    return com, con
+    if not search:
+        ready, queue, stack, end_node = check_ready()
+
+    if event.type == pygame.KEYDOWN and ready:
+        search = True
+        # print(queue[0].x, queue[0].y)
+    if queue and search:
+        cur = queue.pop(0)
+        cur.visited = True
+        if cur.end:
+            search = False
+
+            while not cur.prior.start:
+                path.append(cur.prior)
+                cur = cur.prior
+
+        else:
+            for n in cur.neigh:
+                if not n.queued and not n.wall:
+                    n.queued = True
+                    n.prior = cur
+                    queue.append(n)
+    else:
+        if search:
+            pygame.draw.rect(SCREEN, 'black', [200, 200, 200, 200], 0, 5)
+            search = False
+
+    return com, con, search, queue
 
 
-def draw_dfs(condition):
-    SCREEN.fill('white')
+def draw_dfs(condition, search, stack):
+    ready = None
+
+    SCREEN.fill('#343434')
 
     com = 2
     con = condition
@@ -208,7 +243,34 @@ def draw_dfs(condition):
             con = 3
             # messagebox.showinfo("cek aja", f"{con}")
 
-    return com, con
+    if not search:
+        ready, queue, stack, end_node = check_ready()
+
+    if event.type == pygame.KEYDOWN and ready:
+        search = True
+        # print(queue[0].x, queue[0].y)
+    if stack and search:
+        cur = stack.pop()
+        cur.visited = True
+        if cur.end:
+            search = False
+
+            while not cur.prior.start:
+                path.append(cur.prior)
+                cur = cur.prior
+
+        else:
+            for n in cur.neigh:
+                if not n.queued and not n.wall:
+                    n.queued = True
+                    n.prior = cur
+                    stack.append(n)
+    else:
+        if search:
+            pygame.draw.rect(SCREEN, 'black', [200, 200, 200, 200], 0, 5)
+            search = False
+
+    return com, con, search, stack
 
 
 def draw_a(condition):
@@ -278,31 +340,84 @@ def check_color():
             box.draw(SCREEN, (100, 100, 100))
 
             if box.queued:
-                box.draw(SCREEN, (200, 0, 0))
+                box.draw(SCREEN, "#2A3624")
             if box.visited:
-                box.draw(SCREEN, (0, 200, 0))
+                box.draw(SCREEN, "#539375")
             if box in path:
-                box.draw(SCREEN, (0, 0, 200))
+                box.draw(SCREEN, "#BEFFA6")
 
             if box.start:
-                box.draw(SCREEN, (0, 200, 200))
+                box.draw(SCREEN, "#FFD643")
             if box.wall:
                 box.draw(SCREEN, (52, 52, 52))
             if box.end:
-                box.draw(SCREEN, (200, 200, 0))
+                box.draw(SCREEN, "#F7AEAE")
 
 
 # Mengisi Grid
-for i in range(col):
-    arr = []
-    for j in range(row):
-        arr.append(Box(i, j))
-    grid.append(arr)
+def make_grid():
+    for i in range(col):
+        arr = []
+        for j in range(row):
+            arr.append(Box(i, j))
+        grid.append(arr)
+
+
+def reset_grid():
+    for i in grid:
+        for box in i:
+            box.start = False
+            box.wall = False
+            box.end = False
+            box.queued = False
+            box.visited = False
+            box.prior = None
+
+    return []
+
+
+
+def delete_start():
+    for i in grid:
+        for box in i:
+            box.start = False
+
+
+def delete_end():
+    for i in grid:
+        for box in i:
+            box.end = False
+
+
+make_grid()
 
 # Mengisi Neighbour
 for i in range(col):
     for j in range(row):
         grid[i][j].set_neighbours()
+
+
+def check_ready():
+
+    cond1 = 0
+    cond2 = 0
+    q = None
+    s = None
+    end_n = None
+
+    for l in grid:
+        for box in l:
+            if box.start:
+                cond1 += 1
+                q = [box]
+                s = [box]
+            if box.end:
+                cond2 += 1
+
+    if cond1 == cond2 == 1:
+        return True, q, s, end_n
+
+    return False, q, s, end_n
 
 
 def check_collide(con):
@@ -312,8 +427,10 @@ def check_collide(con):
                 box.draw(SCREEN, (169, 169, 169))
                 if pygame.mouse.get_pressed()[0]:
                     if con == 1:
+                        delete_start()
                         box.start = not box.start
                     elif con == 2:
+                        delete_end()
                         box.end = not box.end
                     elif con == 3:
                         box.wall = not box.wall
@@ -327,13 +444,17 @@ while run:
 
     if state == 0:
         state = draw_menu()
+        path = reset_grid()
+        con = 0
     if state == 1:
-        state, con = draw_djik(con)
+        state, con, searching, queue = draw_djik(con, searching, queue)
         check_collide(con)
     if state == 2:
-        state, con = draw_dfs(con)
+        state, con, searching, stack = draw_dfs(con, searching, stack)
+        check_collide(con)
     if state == 3:
         state, con = draw_a(con)
+        check_collide(con)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
