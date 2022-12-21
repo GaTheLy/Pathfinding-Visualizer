@@ -1,29 +1,38 @@
-import pygame, sys
+import pygame
 from tkinter import messagebox
 
+# Set window width and height
 pygame.init()
 window_w = 600
 window_h = 600
 
 SCREEN = pygame.display.set_mode((window_w, window_h))
 pygame.display.set_caption("Main Menu")
-fps = 60
+fps = 30
 timer = pygame.time.Clock()
 
 font = pygame.font.Font('freesansbold.ttf', 32)
 
+# State (berada di page mana) & con untuk kondisi node saat dipencet
 state = 0
 con = 0
 
+# Column dan row dari grid
 col = 30
 row = 25
 
+# Width and height dari box
 box_w = 20
 box_h = 20
 
+# Grid = List 2D berisi objek Box
 grid = []
+# Path = Jalan dari start node ke end node
 path = []
+
 searching = False
+nemu = False
+cur = None
 queue = []
 stack = []
 
@@ -49,6 +58,7 @@ class Box:
         self.box = pygame.draw.rect(win, color, (self.x * box_w, self.y * box_h, box_w-2, box_h-2))
 
     def set_neighbours(self):
+        # Atas bawah kanan kiri
         if self.x > 0:
             self.neigh.append(grid[self.x - 1][self.y])
         if self.x < col - 1:
@@ -61,6 +71,7 @@ class Box:
 
 def draw_menu():
     SCREEN.fill('black')
+    # com ini temp variable buat state
     com = 0
 
     djik_btn = pygame.draw.rect(SCREEN, 'gray', [225, 150, 150, 50], 0, 5)
@@ -75,13 +86,15 @@ def draw_menu():
 
     a_btn = pygame.draw.rect(SCREEN, 'gray', [225, 350, 150, 50], 0, 5)
     pygame.draw.rect(SCREEN, 'dark gray', [225, 350, 150, 50], 5, 5)
-    a_text = font.render('A*', True, 'black')
-    SCREEN.blit(a_text, (285, 360))
+    a_text = font.render('Quit', True, 'black')
+    SCREEN.blit(a_text, (265, 360))
 
     if djik_btn.collidepoint(pygame.mouse.get_pos()):
+        # Hover
         djik_text = font.render('Djikstra', True, 'beige')
         SCREEN.blit(djik_text, (240, 160))
         if pygame.mouse.get_pressed()[0]:
+            # Click
             com = 1
     if dfs_btn.collidepoint(pygame.mouse.get_pos()):
         dfs_text = font.render('DFS', True, 'beige')
@@ -89,14 +102,15 @@ def draw_menu():
         if  pygame.mouse.get_pressed()[0]:
             com = 2
     if a_btn.collidepoint(pygame.mouse.get_pos()):
-        a_text = font.render('A*', True, 'beige')
-        SCREEN.blit(a_text, (285, 360))
+        pygame.draw.rect(SCREEN, 'red', [225, 350, 150, 50], 5, 5)
+        a_text = font.render('Quit', True, 'red')
+        SCREEN.blit(a_text, (265, 360))
         if  pygame.mouse.get_pressed()[0]:
             com = 3
     return com
 
 
-def draw_djik(condition, search, queue):
+def draw_djik(condition, search, queue, cur, nemu):
     # if queue:
     #     print(len(queue))
     ready = None
@@ -107,20 +121,24 @@ def draw_djik(condition, search, queue):
 
     check_color()
 
+    # Dalem
     menu_btn = pygame.draw.rect(SCREEN, 'gray', [225, 525, 150, 50], 0, 5)
+    # Border
     pygame.draw.rect(SCREEN, 'dark gray', [225, 525, 150, 50], 5, 5)
     font_1 = pygame.font.Font('freesansbold.ttf', 24)
+    # Text
     a_text = font_1.render('Main Menu', True, 'black')
+    # Posisi Text
     SCREEN.blit(a_text, (235, 535))
 
-    s_btn = pygame.draw.rect(SCREEN, 'dark green', [165, 525, 50, 50], 0, 5)
+    s_btn = pygame.draw.rect(SCREEN, "#FFD643", [165, 525, 50, 50], 0, 5)
     pygame.draw.rect(SCREEN, 'dark gray', [165, 525, 50, 50], 5, 5)
-    s_text = font_1.render('S', True, 'white')
+    s_text = font_1.render('S', True, 'black')
     SCREEN.blit(s_text, (182, 538))
 
-    e_btn = pygame.draw.rect(SCREEN, 'maroon', [105, 525, 50, 50], 0, 5)
+    e_btn = pygame.draw.rect(SCREEN, "#FF8800", [105, 525, 50, 50], 0, 5)
     pygame.draw.rect(SCREEN, 'dark gray', [105, 525, 50, 50], 5, 5)
-    s_text = font_1.render('E', True, 'white')
+    s_text = font_1.render('E', True, 'black')
     SCREEN.blit(s_text, (122, 538))
 
     w_btn = pygame.draw.rect(SCREEN, 'black', [45, 525, 50, 50], 0, 5)
@@ -132,12 +150,14 @@ def draw_djik(condition, search, queue):
         menu_text = font_1.render('Main Menu', True, 'beige')
         SCREEN.blit(menu_text, (235, 535))
         if pygame.mouse.get_pressed()[0]:
+            # State berubah
             com = 0
 
     if s_btn.collidepoint(pygame.mouse.get_pos()):
         s_text = font_1.render('S', True, 'beige')
         SCREEN.blit(s_text, (182, 538))
         if pygame.mouse.get_pressed()[0]:
+            # Condition berubah
             con = 1
             # messagebox.showinfo("cek aja", f"{con}")
 
@@ -155,6 +175,10 @@ def draw_djik(condition, search, queue):
             con = 3
             # messagebox.showinfo("cek aja", f"{con}")
 
+    if nemu and not cur.start:
+        path.append(cur)
+        cur = cur.prior
+
     if not search:
         ready, queue, stack, end_node = check_ready()
 
@@ -166,10 +190,11 @@ def draw_djik(condition, search, queue):
         cur.visited = True
         if cur.end:
             search = False
+            nemu = True
 
-            while not cur.prior.start:
-                path.append(cur.prior)
-                cur = cur.prior
+            # while not cur.prior.start:
+            #     path.append(cur.prior)
+            #     cur = cur.prior
 
         else:
             for n in cur.neigh:
@@ -182,10 +207,10 @@ def draw_djik(condition, search, queue):
             pygame.draw.rect(SCREEN, 'black', [200, 200, 200, 200], 0, 5)
             search = False
 
-    return com, con, search, queue
+    return com, con, search, queue, cur, nemu
 
 
-def draw_dfs(condition, search, stack):
+def draw_dfs(condition, search, stack, cur, nemu):
     ready = None
 
     SCREEN.fill('#343434')
@@ -201,14 +226,14 @@ def draw_dfs(condition, search, stack):
     a_text = font_1.render('Main Menu', True, 'black')
     SCREEN.blit(a_text, (235, 535))
 
-    s_btn = pygame.draw.rect(SCREEN, 'dark green', [165, 525, 50, 50], 0, 5)
+    s_btn = pygame.draw.rect(SCREEN, "#FFD643", [165, 525, 50, 50], 0, 5)
     pygame.draw.rect(SCREEN, 'dark gray', [165, 525, 50, 50], 5, 5)
-    s_text = font_1.render('S', True, 'white')
+    s_text = font_1.render('S', True, 'black')
     SCREEN.blit(s_text, (182, 538))
 
-    e_btn = pygame.draw.rect(SCREEN, 'maroon', [105, 525, 50, 50], 0, 5)
+    e_btn = pygame.draw.rect(SCREEN, "#FF8800", [105, 525, 50, 50], 0, 5)
     pygame.draw.rect(SCREEN, 'dark gray', [105, 525, 50, 50], 5, 5)
-    s_text = font_1.render('E', True, 'white')
+    s_text = font_1.render('E', True, 'black')
     SCREEN.blit(s_text, (122, 538))
 
     w_btn = pygame.draw.rect(SCREEN, 'black', [45, 525, 50, 50], 0, 5)
@@ -242,6 +267,10 @@ def draw_dfs(condition, search, stack):
         if pygame.mouse.get_pressed()[0]:
             con = 3
             # messagebox.showinfo("cek aja", f"{con}")
+
+    if nemu and not cur.start:
+        path.append(cur)
+        cur = cur.prior
 
     if not search:
         ready, queue, stack, end_node = check_ready()
@@ -254,10 +283,10 @@ def draw_dfs(condition, search, stack):
         cur.visited = True
         if cur.end:
             search = False
-
-            while not cur.prior.start:
-                path.append(cur.prior)
-                cur = cur.prior
+            nemu = True
+            # while not cur.prior.start:
+            #     path.append(cur.prior)
+            #     cur = cur.prior
 
         else:
             for n in cur.neigh:
@@ -270,66 +299,7 @@ def draw_dfs(condition, search, stack):
             pygame.draw.rect(SCREEN, 'black', [200, 200, 200, 200], 0, 5)
             search = False
 
-    return com, con, search, stack
-
-
-def draw_a(condition):
-    SCREEN.fill('pink')
-
-    com = 3
-    con = condition
-
-    check_color()
-
-    menu_btn = pygame.draw.rect(SCREEN, 'gray', [225, 525, 150, 50], 0, 5)
-    pygame.draw.rect(SCREEN, 'dark gray', [225, 525, 150, 50], 5, 5)
-    font_1 = pygame.font.Font('freesansbold.ttf', 24)
-    a_text = font_1.render('Main Menu', True, 'black')
-    SCREEN.blit(a_text, (235, 535))
-
-    s_btn = pygame.draw.rect(SCREEN, 'dark green', [165, 525, 50, 50], 0, 5)
-    pygame.draw.rect(SCREEN, 'dark gray', [165, 525, 50, 50], 5, 5)
-    s_text = font_1.render('S', True, 'white')
-    SCREEN.blit(s_text, (182, 538))
-
-    e_btn = pygame.draw.rect(SCREEN, 'maroon', [105, 525, 50, 50], 0, 5)
-    pygame.draw.rect(SCREEN, 'dark gray', [105, 525, 50, 50], 5, 5)
-    s_text = font_1.render('E', True, 'white')
-    SCREEN.blit(s_text, (122, 538))
-
-    w_btn = pygame.draw.rect(SCREEN, 'black', [45, 525, 50, 50], 0, 5)
-    pygame.draw.rect(SCREEN, 'dark gray', [45, 525, 50, 50], 5, 5)
-    s_text = font_1.render('W', True, 'white')
-    SCREEN.blit(s_text, (59, 538))
-
-    if menu_btn.collidepoint(pygame.mouse.get_pos()):
-        menu_text = font_1.render('Main Menu', True, 'beige')
-        SCREEN.blit(menu_text, (235, 535))
-        if pygame.mouse.get_pressed()[0]:
-            com = 0
-
-    if s_btn.collidepoint(pygame.mouse.get_pos()):
-        s_text = font_1.render('S', True, 'beige')
-        SCREEN.blit(s_text, (182, 538))
-        if pygame.mouse.get_pressed()[0]:
-            con = 1
-            # messagebox.showinfo("cek aja", f"{con}")
-
-    if e_btn.collidepoint(pygame.mouse.get_pos()):
-        e_text = font_1.render('E', True, 'beige')
-        SCREEN.blit(e_text, (122, 538))
-        if pygame.mouse.get_pressed()[0]:
-            con = 2
-            # messagebox.showinfo("cek aja", f"{con}")
-
-    if w_btn.collidepoint(pygame.mouse.get_pos()):
-        menu_text = font_1.render('W', True, 'beige')
-        SCREEN.blit(menu_text, (58, 538))
-        if pygame.mouse.get_pressed()[0]:
-            con = 3
-            # messagebox.showinfo("cek aja", f"{con}")
-
-    return com, con
+    return com, con, search, stack, cur, nemu
 
 
 def check_color():
@@ -340,18 +310,18 @@ def check_color():
             box.draw(SCREEN, (100, 100, 100))
 
             if box.queued:
-                box.draw(SCREEN, "#2A3624")
+                box.draw(SCREEN, "#BEFFA6")
             if box.visited:
                 box.draw(SCREEN, "#539375")
             if box in path:
-                box.draw(SCREEN, "#BEFFA6")
+                box.draw(SCREEN, "#FFE99B")
 
             if box.start:
                 box.draw(SCREEN, "#FFD643")
             if box.wall:
                 box.draw(SCREEN, (52, 52, 52))
             if box.end:
-                box.draw(SCREEN, "#F7AEAE")
+                box.draw(SCREEN, "#FF8800")
 
 
 # Mengisi Grid
@@ -373,7 +343,7 @@ def reset_grid():
             box.visited = False
             box.prior = None
 
-    return []
+    return [], False
 
 
 
@@ -398,8 +368,9 @@ for i in range(col):
 
 
 def check_ready():
-
+    # Count buat start node
     cond1 = 0
+    # Count buat end node
     cond2 = 0
     q = None
     s = None
@@ -409,6 +380,7 @@ def check_ready():
         for box in l:
             if box.start:
                 cond1 += 1
+                # Isi queue dengan Start Node
                 q = [box]
                 s = [box]
             if box.end:
@@ -444,17 +416,16 @@ while run:
 
     if state == 0:
         state = draw_menu()
-        path = reset_grid()
+        path, nemu = reset_grid()
         con = 0
     if state == 1:
-        state, con, searching, queue = draw_djik(con, searching, queue)
+        state, con, searching, queue, cur, nemu = draw_djik(con, searching, queue, cur, nemu)
         check_collide(con)
     if state == 2:
-        state, con, searching, stack = draw_dfs(con, searching, stack)
+        state, con, searching, stack, cur, nemu = draw_dfs(con, searching, stack, cur, nemu)
         check_collide(con)
     if state == 3:
-        state, con = draw_a(con)
-        check_collide(con)
+        run = False
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
