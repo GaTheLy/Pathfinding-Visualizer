@@ -1,5 +1,5 @@
 # Pathfinding-Visualizer
-![Pathfinding Visualizer Demo](https://github.com/GaTheLy/Pathfinding-Visualizer/blob/c01b867edbfe1ac98aea53a15bf2951e0e75f9cc/assets/dijstra_demo.gif)<br>
+![Pathfinding Visualizer Demo](https://github.com/GaTheLy/Pathfinding-Visualizer/blob/main/assets/dijstra_demo.gif)<br>
 This project was my final assignment for the Data Structure course at university. The program was made using Python, 
 mainly utilizing the Pygame library. Initially, the base of this project was inspired by a YouTube video by max on tech. 
 The link for the video and the code source will be provided at the end. <br>
